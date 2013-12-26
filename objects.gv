@@ -1,0 +1,37 @@
+digraph dlset {
+page="8.5,11.0"
+size="7,10"
+center=1
+
+	pathtoinode [shape=record,
+		     label="{PATH TO INODE|{<path>path|<inode>inode}|{path|inode}|...}"];
+	
+	inodetoentry [shape=record,
+		      label="{INODE TO ENTRY|{inode|<entry>entry}|{inode|entry}|...}"];
+	
+	inodetosynonyms [shape=record,
+			 label="{INODE TO SYNONYMS|{inode|<synonymtable>synonym table}|{inode|synonym table}|...}"];
+	
+	synonymtable [shape=record,
+		      label="{SYNONYM TABLE(n)|{<synonym>synonym path|bool}|{synonym path|bool}|...}"];
+	nametopaths [shape=record,
+		     label="{NAME TO PATHS|{<name>name|<pathtesttable>path test table}|{name|path test table}|...}"];
+	pathtesttable [shape=record,
+		   label="{PATH TEST TABLE(n)|{<dirpath>dir path|bool}|{dir path|bool}|...}"]
+	entry [shape=record,
+	       label="{ENTRY(n)|<path>path|<file>file|elftype|interp|soname|<rpath>rpath|<runpath>runpath|needed|supporter|dependents}"];
+	dirtable [shape=record,
+		  label="{DIR TABLE(n)|<dirpath>dir path|dir path|...}"];
+	entry:rpath->dirtable;
+	entry:runpath->dirtable;
+	pathtoinode:inode->inodetoentry;
+	pathtoinode:inode->inodetosynonyms;
+	inodetosynonyms:synonymtable->synonymtable;
+	synonymtable:synonym->pathtoinode:path;
+	inodetoentry:entry->entry;
+	entry:path->pathtoinode:path;
+	entry:file->nametopaths:name;
+	nametopaths:pathtesttable->pathtesttable;
+	dirtable:dirpath->pathtesttable:dirpath
+	}
+	
