@@ -7,10 +7,10 @@ center=1
 		     label="{PATH TO INODE|{<path>path|<inode>inode}|{path|inode}|...}"];
 	
 	inodetoentry [shape=record,
-		      label="{INODE TO ENTRY|{inode|<entry>entry}|{inode|entry}|...}"];
+		      label="{INODE TO ENTRY|{<inode>inode|<entry>entry}|{inode|entry}|...}"];
 	
 	inodetosynonyms [shape=record,
-			 label="{INODE TO SYNONYMS|{inode|<synonymtable>synonym table}|{inode|synonym table}|...}"];
+			 label="{INODE TO SYNONYMS|{<inode>inode|<synonymtable>synonym table}|{inode|synonym table}|...}"];
 	
 	synonymtable [shape=record,
 		      label="{SYNONYM TABLE(n)|{<synonym>synonym path|bool}|{synonym path|bool}|...}"];
@@ -24,8 +24,8 @@ center=1
 		  label="{DIR TABLE(n)|<dirpath>dir path|dir path|...}"];
 	entry:rpath->dirtable;
 	entry:runpath->dirtable;
-	pathtoinode:inode->inodetoentry;
-	pathtoinode:inode->inodetosynonyms;
+	pathtoinode:inode->inodetoentry:inode;
+	pathtoinode:inode->inodetosynonyms:inode;
 	inodetosynonyms:synonymtable->synonymtable;
 	synonymtable:synonym->pathtoinode:path;
 	inodetoentry:entry->entry;
