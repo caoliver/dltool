@@ -168,23 +168,6 @@ function show_cpiospec(supporter_set, libpath)
    end
 end
 
-function show_cp(supporter_set, libpath)
-   local function basename(path)
-      return path:match '.*/([^/]*)' or path
-   end
-
-   for entry, used_paths in pairs(supporter_set) do
-      local filename = entry.soname or basename(used_paths[1])
-      print('cp '..entry.path..' '..libpath..filename..' ')
-      for _,path in ipairs(used_paths) do
-	 local base = basename(path)
-	 if base ~= filename then
-	    io.write(';ln -s  '..libpath..filename..' '..libpath..base)
-	 end
-      end
-   end
-end
-
 
 function readelf(cluster, files)
    cluster.dirty = true
