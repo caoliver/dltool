@@ -6,7 +6,6 @@ local function table_keys(t)
    return list
 end
 
-
 local function add_look_ahead(file)
    local pushback = nil
    local tbl = getmetatable(file)
@@ -169,9 +168,19 @@ function show_cpiospec(supporter_set, libpath)
 end
 
 
-function readelf(cluster, files)
+local function append_prefix(files, prefix)
+   local prefix = prefix or ''
+   local name_start = prefix and #prefix + 1 or 1
+   if type(files) == 'table' then
+      files = table.concat(files, ' '..prefix)
+   end
+   return prefix..files, name_start
+end
+
+
+function readelf(cluster, files, prefix)
    cluster.dirty = true
-   if type(files) == 'table' then files = table.concat(files, ' ') end
+   local files, name_start = append_prefix(files, prefix)
    local proc =
       io.popen('readelf -dl / '..files..' 2>&-')
    add_look_ahead(proc)
@@ -184,7 +193,7 @@ function readelf(cluster, files)
 	 end,
 
 	 file = function(line)
-	    entry.path = line:match '^File: (.*)'
+	    entry.path = string.sub(line:match '^File: (.*)', name_start, -1)
 	    entry.file = entry.path:match '.*/(.*)'
 	    return 'elftype'
 	 end,
@@ -256,14 +265,18 @@ function create_cluster()
    }
 end
 
-function add_files(cluster, files)
-   if type(files) == 'table' then files = table.concat(files, ' ') end
-   local proc = io.popen('find  2>&- ' ..
+
+function add_files(cluster, files, prefix)
+   cluster.dirty = true
+   local files, name_start = append_prefix(files, prefix)
+   local proc = io.popen('find 2>&- ' ..
 			    files ..
-			    ' -maxdepth 0 -follow -type f -a ! -name \\*.a' ..
+			    ' -maxdepth 1 -mindepth 1' ..
+			    ' -follow -type f -a ! -name \\*.a' ..
 			    ' -printf "%D,%i %p %s\n"')
    for line in proc:lines() do
       local inode, name, size = line:match '^(.*) (.*) (.*)'
+      name=name:sub(name_start,-1)
       local dir, base = name:match '(.*)/([^/]*)'
       if not cluster.name_to_paths[base] then
 	 cluster.name_to_paths[base] = {}
@@ -324,39 +337,21 @@ function find(cluster, pattern)
 end
 
 
-function renew()
+function load_system(file, name, prefix)
+   local t = loadfile(file)()
+   prefix = prefix or t.prefix or ''
+   strip = prefix:match '^(.*)/$'
+   prefix = strip or prefix
    local new_cluster = create_cluster()
-   add_files(new_cluster, candidates)
-   readelf(new_cluster, new_cluster.representatives)
-   resolve_system(new_cluster, search_path)
+   add_files(new_cluster, t.candidates, prefix)
+   readelf(new_cluster, new_cluster.representatives, prefix)
+   resolve_system(new_cluster, t.search_path)
+   _G[name] = new_cluster
    return new_cluster
 end
 
--- [[
-candidates = {
-   '/bin/* /sbin/* /usr/bin/* /usr/sbin/* /usr/local/bin/*',
-   '/lib64/* /usr/lib64/* /usr/local/lib/* /usr/local/lib64/*',
-   '/usr/lib64/perl5/CORE/libperl.so',
-   '/usr/lib64/expect5.44.1.15/libexpect5.44.1.15.so',
-   '/usr/local/lib/calf/*',
-   '/usr/local/lib/graphviz/*',
-   '/usr/local/lib/linuxsampler/*',
-   '/usr/local/lib/gigedit/*',
-   '/usr/local/lib/pure/xml.so'
-}
+if (arg[1]) then
+   load_system(arg[1], 'c', arg[2])
+   print("Cluster is in 'c'")
+end
 
-search_path = {
-   '/lib64',
-   '/usr/lib64',
-   '/usr/local/lib',
-   '/usr/local/lib64',
-   '/usr/local/lib/graphviz',
-   '/usr/local/lib/gigedit',
-   '/usr/local/lib/pure'
-}
---]]
-
-
-
-c = renew()
-print("Cluster is in 'c'")
