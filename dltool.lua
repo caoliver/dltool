@@ -64,9 +64,6 @@ function resolve_system(cluster, default_path)
       end
       local function make_link(supporter_inode, path)
 	 local supporter = cluster.inode_to_entry[supporter_inode]
-	 if entry.path=='/bin/ls' then
-	    print('linking '..entry.path..' -> '..supporter.path)
-	 end
 	 table.insert(supporter.dependents, { entry = entry, path = path })
 	 table.insert(entry.supporters, { entry = supporter, path = path})
       end
@@ -354,4 +351,3 @@ if (arg[1]) then
    load_system(arg[1], 'c', arg[2])
    print("Cluster is in 'c'")
 end
-
