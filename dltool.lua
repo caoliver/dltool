@@ -251,7 +251,8 @@ function create_cluster()
 	    path_to_inode = {},
 	    name_to_paths = {},
 	    inode_to_synonyms = {},
-	    inode_to_entry = {}
+	    inode_to_entry = {},
+	    inode_size = {}
    }
 end
 
@@ -260,9 +261,9 @@ function add_files(cluster, files)
    local proc = io.popen('find  2>&- ' ..
 			    files ..
 			    ' -maxdepth 0 -follow -type f -a ! -name \\*.a' ..
-			    ' -printf "%D,%i %p\n"')
+			    ' -printf "%D,%i %p %s\n"')
    for line in proc:lines() do
-      local inode, name = line:match '^(.*) (.*)'
+      local inode, name, size = line:match '^(.*) (.*) (.*)'
       local dir, base = name:match '(.*)/([^/]*)'
       if not cluster.name_to_paths[base] then
 	 cluster.name_to_paths[base] = {}
@@ -270,6 +271,7 @@ function add_files(cluster, files)
       cluster.name_to_paths[base][dir] = true
       cluster.path_to_inode[name] = inode
       local existing_ref = cluster.inode_to_synonyms[inode]
+      cluster.inode_size[inode] = size
       if not existing_ref then
 	 existing_ref = {}
 	 cluster.inode_to_synonyms[inode] = existing_ref
