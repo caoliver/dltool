@@ -288,6 +288,50 @@ function add_files(cluster, files)
    end
 end
 
+
+function show_missing(cluster)
+   for k,v in pairs(cluster.missing) do
+      print(k..':')
+      for _,ref in ipairs(v) do
+	 print('',ref.path)
+      end
+   end
+end
+
+
+function show_supported(cluster, path)
+   local seen = {}
+   local stack = { cluster.inode_to_entry[cluster.path_to_inode[path]] }
+   print("Dependents upon "..path)
+   while #stack > 0 do
+      local top = table.remove(stack)
+      for _,dep in ipairs(top.dependents) do
+	 local entry = dep.entry
+	 if not seen[entry] then
+	    seen[entry] = true
+	    table.insert(stack, entry)
+	    print('',entry.path)
+	 end
+      end
+   end
+end
+
+
+function find(cluster, pattern)
+   for path,_ in pairs(cluster.path_to_inode) do
+      if path:match(pattern) then print(path) end
+   end
+end
+
+
+function renew()
+   local new_cluster = create_cluster()
+   add_files(new_cluster, candidates)
+   readelf(new_cluster, new_cluster.representatives)
+   resolve_system(new_cluster, search_path)
+   return new_cluster
+end
+
 -- [[
 candidates = {
    '/bin/* /sbin/* /usr/bin/* /usr/sbin/* /usr/local/bin/*',
@@ -312,12 +356,7 @@ search_path = {
 }
 --]]
 
-soc = create_cluster()
 
-add_files(soc, candidates)
 
-readelf(soc, soc.representatives)
-
-resolve_system(soc, search_path)
-
-for k,v in pairs(soc.missing) do print(k) end
+c = renew()
+print("Cluster is in 'c'")
