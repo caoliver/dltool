@@ -343,7 +343,7 @@ function load_system(file, name, prefix)
    add_files(new_cluster, t.candidates, prefix)
    readelf(new_cluster, new_cluster.representatives, prefix)
    resolve_system(new_cluster, t.search_path)
-   _G[name] = new_cluster
+   if name then _G[name] = new_cluster end
    return new_cluster
 end
 
