@@ -32,7 +32,6 @@ function resolve (directories, prefix, extralibs)
 	 if newpath == path then break end
 	 path = newpath
       end
-      path = path:gsub('^/%.%.', '/')
       -- Remove trailing slash if present.
       return path[#path] == '/'  and path:sub(1,-2) or path
    end
