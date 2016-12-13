@@ -1,4 +1,4 @@
-local elfutil=package.loadlib((arg[0]:match '^(.*)/')..
+local elfutil=package.loadlib((arg[0]:match '^(.*)/' or '.')..
       '/elfutil.so', 'luaopen_elfutil')()
 
 -- This metatable provides for tables of tables where a new key
@@ -20,6 +20,7 @@ function resolve (directories, prefix, extralibs)
    local stack = {}
    local slash = string.byte('/')
    local ldsocache = {}
+   local defaultpaths = { '/lib', '/lib64', '/usr/lib', '/usr/lib64' }
 
    local function cleanuppath(path)
       -- Elide superfluous '/'.
@@ -98,6 +99,7 @@ function resolve (directories, prefix, extralibs)
       return #entries > 0
    end
 
+   add_files(defaultpaths)
    add_files(ldsocache)
    add_files(directories)
    add_files(extralibs)
@@ -171,7 +173,7 @@ function resolve (directories, prefix, extralibs)
 		     end
 		  end
 		  if not search(rpath) and not search(ldsocache) and
-		  not search(extralibs) then
+		     not search(defaultpaths) and not search(extralibs) then
 		     table.insert(missing[needed], elf)
 		  end
 	       else
