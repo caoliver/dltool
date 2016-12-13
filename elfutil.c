@@ -346,7 +346,6 @@ LUAFN(get_origins)
 	    lua_pushlstring(L, filename, len > 0 ? len : 1);
 	} else
 	    lua_pushstring(L, filename);
-	char *mystring = lua_tostring(L, -1);
 	lua_pushboolean(L, 1);
 	lua_rawset(L, -4);
     }
