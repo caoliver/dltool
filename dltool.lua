@@ -1,13 +1,15 @@
-local elfutil=package.loadlib((arg[0]:match '^(.*)/' or '.')..
-      '/elfutil.so', 'luaopen_elfutil')()
+local origin=(arg and (arg[0]:match '^(.*)/') or '.')
+local elfutil=package.loadlib(origin..'/elfutil.so', 'luaopen_elfutil')()
+local marshal=package.loadlib(origin..'/lmarshal.so', 'luaopen_marshal')()
 
 -- This metatable provides for tables of tables where a new key
 -- yields an empty table which is cached for future reference.
 local populator = { __index = function(t,k) t[k] = {}; return t[k] end }
 
-function resolve (directories, prefix, extralibs)
+function resolve (directories, prefix, extralibs, cluster)
 
-   local cluster = {}
+   local doreset = cluster and cluster.inode_to_elf
+   local cluster = cluster or {}
    setmetatable(cluster, populator)
    local inode_to_elf = cluster.inode_to_elf
    local inode_to_synonyms = cluster.inode_to_synonyms
@@ -61,6 +63,19 @@ function resolve (directories, prefix, extralibs)
 	 extralibs = cleandirs
       else
 	 extralibs = {}
+      end
+   end
+
+   if doreset then
+      missing = {}
+      cluster.missing = missing
+      for inode, elf in pairs(inode_to_elf) do
+	 if elf then
+	    elf.dependents = {}
+	    elf.supporters = {}
+	    elf.needs_met = {}
+	    table.insert(stack, inode)
+	 end
       end
    end
 
@@ -238,7 +253,7 @@ end
 function show_missing(cluster, verbose)
    for lib,needers in pairs(cluster.missing) do
       print('Missing: '..lib)
-      if (verbose) then
+      if verbose then
 	 for _, needer in ipairs(needers) do
 	    local elf = cluster.inode_to_elf[needer.inode]
 	    local first = '   M:'..elf.machine..' C:'..elf.class
@@ -251,6 +266,22 @@ function show_missing(cluster, verbose)
    end
 end
 
+function save_cluster(cluster, file)
+   local handle, err = io.open(file, 'w')
+   if not handle then error(err) end
+   local data = marshal.encode(cluster)
+   handle:write(data)
+   handle:close()
+end
+
+function load_cluster(file)
+   local handle, err = io.open(file)
+   if not handle then error(err) end
+   local data = handle:read '*a'
+   handle:close()
+   return marshal.decode(data)
+end
+
 function load_spec(file, prefix)
    print(file)
    local t = loadfile(file)()
@@ -258,7 +289,7 @@ function load_spec(file, prefix)
    return resolve(t.paths, prefix, t.extras)
 end
 
-if (arg[1]) then
+if (arg and arg[1]) then
    local name = arg[3] or 'c'
    _G[name] = load_spec(arg[1], arg[2])
    print('Cluster is in \''..name..'\'')
