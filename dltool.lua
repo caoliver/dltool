@@ -1,3 +1,5 @@
+local elfutil=elfutil
+
 -- This metatable provides for tables of tables where a new key
 -- yields an empty table which is cached for future reference.
 local populator = { __index = function(t,k) t[k] = {}; return t[k] end }
@@ -195,80 +197,81 @@ function resolve (directories, prefix, extralibs, cluster)
    end
    setmetatable(missing, nil)
 
-   return cluster
-end
-
-function find(cluster, pattern)
-   for path,_ in pairs(cluster.path_to_inode) do
-      if path:match(pattern) then print(path) end
-   end
-end
-
-function show_expand(cluster, path, header, field)
-   local elf = cluster.inode_to_elf[cluster.path_to_inode[path]]
-   if not elf then
-      print("No such item: "..path)
-      return
-   end
-   local seen = {}
-   local stack = { elf }
-   print(header..path..':')
-   while #stack > 0 do
-      local top = table.remove(stack)
-      for _,this in ipairs(top[field]) do
-         local entry = this.elf
-         if not seen[entry] then
-            seen[entry] = true
-            table.insert(stack, entry)
-            print('',entry.path)
-         end
+   function cluster.find(cluster, pattern)
+      for path,_ in pairs(cluster.path_to_inode) do
+	 if path:match(pattern) then print(path) end
       end
    end
-   return true
-end
 
-function show_supported(cluster, path)
-   show_expand(cluster, path, "Dependents upon ", "dependents")
-end
+   local function show_expand(cluster, path, header, field)
+      local elf = cluster.inode_to_elf[cluster.path_to_inode[path]]
+      if not elf then
+	 print("No such item: "..path)
+	 return
+      end
+      local seen = {}
+      local stack = { elf }
+      print(header..path..':')
+      while #stack > 0 do
+	 local top = table.remove(stack)
+	 for _,this in ipairs(top[field]) do
+	    local entry = this.elf
+	    if not seen[entry] then
+	       seen[entry] = true
+	       table.insert(stack, entry)
+	       print('',entry.path)
+	    end
+	 end
+      end
+      return true
+   end
 
-function show_needed(cluster, path)
-   if not show_expand(cluster, path, "Needed for ", "supporters") then
-      return
+   function cluster.show_supported(cluster, path)
+      show_expand(cluster, path, "Dependents upon ", "dependents")
    end
-   local unmet = {}
-   local elf = cluster.inode_to_elf[cluster.path_to_inode[path]]
-   for _, needed in ipairs(elf.needed) do
-      if not elf.needs_met[needed] then table.insert(unmet, needed) end
-   end
-   if #unmet > 0 then
-      print('\nUnmet needs:')
-      for _, needed in ipairs(unmet) do print('', needed) end
-   end
-end
 
-function show_missing(cluster, verbose)
-   for lib,needers in pairs(cluster.missing) do
-      print('Missing: '..lib)
-      if verbose then
-	 for _, needer in ipairs(needers) do
-	    local elf = cluster.inode_to_elf[needer.inode]
-	    local first = '   M:'..elf.machine..' C:'..elf.class
-	    for syn,_ in pairs(cluster.inode_to_synonyms[needer.inode]) do
-	       print(first,syn)
-	       first = '         '
+   function cluster.show_needed(cluster, path)
+      if not show_expand(cluster, path, "Needed for ", "supporters") then
+	 return
+      end
+      local unmet = {}
+      local elf = cluster.inode_to_elf[cluster.path_to_inode[path]]
+      for _, needed in ipairs(elf.needed) do
+	 if not elf.needs_met[needed] then table.insert(unmet, needed) end
+      end
+      if #unmet > 0 then
+	 print('\nUnmet needs:')
+	 for _, needed in ipairs(unmet) do print('', needed) end
+      end
+   end
+
+   function cluster.show_missing(cluster, verbose)
+      for lib,needers in pairs(cluster.missing) do
+	 print('Missing: '..lib)
+	 if verbose then
+	    for _, needer in ipairs(needers) do
+	       local elf = cluster.inode_to_elf[needer.inode]
+	       local first = '   M:'..elf.machine..' C:'..elf.class
+	       for syn,_ in pairs(cluster.inode_to_synonyms[needer.inode]) do
+		  print(first,syn)
+		  first = '         '
+	       end
 	    end
 	 end
       end
    end
+
+   function cluster.save_cluster(cluster, file)
+      local handle, err = io.open(file, 'w')
+      if not handle then error(err) end
+      local data = marshal.encode(cluster)
+      handle:write(data)
+      handle:close()
+   end
+
+   return cluster
 end
 
-function save_cluster(cluster, file)
-   local handle, err = io.open(file, 'w')
-   if not handle then error(err) end
-   local data = marshal.encode(cluster)
-   handle:write(data)
-   handle:close()
-end
 
 function load_cluster(file)
    local handle, err = io.open(file)
@@ -282,11 +285,14 @@ function load_spec(file, prefix)
    print(file)
    local t = loadfile(file)()
    prefix = prefix or t.prefix
-   return resolve(t.paths, prefix, t.extras)
+   local cluster = resolve(t.paths, prefix, t.extras)
+   if t.default_name then cluster.default_name = t.default_name end
+   return cluster
 end
 
 if (arg and arg[1]) then
-   local name = arg[3] or 'c'
-   _G[name] = load_spec(arg[1], arg[2])
-   print('Cluster is in \''..name..'\'')
+   local cluster = load_spec(arg[1], arg[2])
+   local name = cluster.default_name or 'NO_NAME'
+   _G[name] = cluster
+   print('\nCluster is in \''..name..'\'\n')
 end

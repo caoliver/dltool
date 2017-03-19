@@ -1,4 +1,6 @@
 return {
+   default_name = 'c',
+
    paths = {
       '/bin',
       '/sbin/',
