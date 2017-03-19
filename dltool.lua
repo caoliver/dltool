@@ -204,23 +204,39 @@ function resolve (directories, prefix, extralibs, cluster)
    do
       local skip = { find=true, show=true }
 
-      find = function (paths, pattern)
+      show = function(paths, luastr)
+	 if luastr then
+	    local maxdir = 0
+	    local split={}
+	    for _,path in ipairs(paths) do
+	       local dir,base = path:match '^(.*/)([^/]*)$'
+	       table.insert(split, {dir,base})
+	       if #dir > maxdir then maxdir = #dir end
+	    end
+	    local spaces = string.rep(' ', maxdir)
+	    for i,split in ipairs(split) do
+	       print(string.format(' \'%s\',%s \'%s\',',
+				   split[1],spaces:sub(#split[1]), split[2]))
+	    end
+	    return
+	 end
+	 for i,path in ipairs(paths) do
+	    print(string.format('    %-6d  %s',i,path))
+	 end
+      end
+
+      find = function (paths, pattern, invert)
 	 local matches = {}
-	 for _,str in ipairs(paths) do
-	    if str:match(pattern) and not skip[str] then
-	       table.insert(matches, str)
-	       print(string.format('    %-6d  %s,',#matches,str))
+	 sense = invert and function(bool) return not bool end
+	    or function(bool) return bool end
+	 for _,path in ipairs(paths) do
+	    if sense(path:match(pattern)) and not skip[path] then
+	       table.insert(matches, path)
 	    end
 	 end
 	 matches.find = find
 	 matches.show = show
 	 return matches
-      end
-
-      show = function(paths)
-	 for i,str in ipairs(paths) do
-	    print(string.format('    %-6d  %s,',i,str))
-	 end
       end
    end
 
@@ -229,7 +245,6 @@ function resolve (directories, prefix, extralibs, cluster)
       for path,_ in pairs(self.path_to_inode) do
 	 if path:match(pattern) then
 	    table.insert(matches, path)
-	    print(string.format('    %-6d  %s,',#matches,path))
 	 end
       end
       table.sort(matches)
@@ -247,7 +262,6 @@ function resolve (directories, prefix, extralibs, cluster)
       local seen = {}
       local stack = { elf }
       local expansion={}
-      print(header..path..':')
       while #stack > 0 do
 	 local top = table.remove(stack)
 	 for _,this in ipairs(top[field]) do
@@ -260,11 +274,14 @@ function resolve (directories, prefix, extralibs, cluster)
 	 end
       end
       table.sort(expansion)
-      for i,path in ipairs(expansion) do
-	 print(string.format('    %-6d  %s,',i,path))
-      end
       expansion.find = find
       expansion.show = show
+      if #expansion > 0 then
+	 print(header..path..':')
+	 expansion.show(expansion)
+      else
+	 print('No '..header:lower()..path..'.')
+      end
       return expansion
    end
 
@@ -288,21 +305,51 @@ function resolve (directories, prefix, extralibs, cluster)
    end
 
    function cluster.show_missing(self, verbose)
+      print 'Missing shared libraries:'
       for lib,needers in pairs(self.missing) do
-	 print('Missing: '..lib)
+	 print('  '..lib)
 	 if verbose then
 	    for _, needer in ipairs(needers) do
 	       local elf = self.inode_to_elf[needer.inode]
-	       local first = '   M:'..elf.machine..' C:'..elf.class
+	       local first = '     M:'..elf.machine..' C:'..elf.class
+	       local rest = string.rep(' ',#first)
 	       for syn,_ in pairs(self.inode_to_synonyms[needer.inode]) do
 		  print(first,syn)
-		  first = '         '
+		  first = rest
 	       end
 	    end
 	 end
       end
    end
 
+   function cluster.show_unneeded(self)
+      local seen = {}
+      local unneeded = {}
+      for path,inode in pairs(self.path_to_inode) do
+	 if not seen[inode] then
+	    seen[inode] = true
+	    local elf = inode_to_elf[path]
+	    if elf and elf.type == 'shared library'
+	    and #elf.dependents == 0 then
+	       table.insert(unneeded, inode)
+	    end
+	 end
+      end
+      if #unneeded == 0 then
+	 print 'No unneeded shared libraries'
+      else
+	 io.write 'Possibly unneeded libraries and their synonyms:'
+	 for _, unneeded in ipairs(unneeded) do
+	    print ''
+	    local indent = ''
+	    for path in pairs('  '..inode_to_synonyms[unneeded]) do
+	       io.write(indent)
+	       print(path)
+	       indent = '  '
+	    end
+	 end
+      end
+   end
 
    function cluster.preserve(self, file)
       if not file:match(file_pattern) then file=file..file_extension end

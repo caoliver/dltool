@@ -3,6 +3,7 @@ load_dlspec
 preserve
 reconstitute
 resolve
-show_supported
 show_needed
 show_missing
+show_supported
+show_unneeded
