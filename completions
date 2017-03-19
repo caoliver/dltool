@@ -1,6 +1,8 @@
 find
-load_cluster
-save_cluster
+load_dlspec
+preserve
+reconstitute
+resolve
 show_supported
 show_needed
 show_missing

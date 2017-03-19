@@ -1,5 +1,8 @@
 local elfutil=elfutil
 
+local file_extension='.dltool'
+local file_pattern='%'..file_extension..'$'
+
 -- This metatable provides for tables of tables where a new key
 -- yields an empty table which is cached for future reference.
 local populator = { __index = function(t,k) t[k] = {}; return t[k] end }
@@ -120,7 +123,7 @@ function resolve (directories, prefix, extralibs, cluster)
    while #stack > 0 do
       while #stack > 0 do table.insert(queue, table.remove(stack)) end
       while #queue > 0 do
-	 inode = table.remove(queue)
+	 local inode = table.remove(queue)
 	 local elf = inode_to_elf[inode]
 	 local origin
 	 if elf.type == 'executable' then
@@ -197,20 +200,53 @@ function resolve (directories, prefix, extralibs, cluster)
    end
    setmetatable(missing, nil)
 
-   function cluster.find(cluster, pattern)
-      for path,_ in pairs(cluster.path_to_inode) do
-	 if path:match(pattern) then print(path) end
+   local find, show
+   do
+      local skip = { find=true, show=true }
+
+      find = function (paths, pattern)
+	 local matches = {}
+	 for _,str in ipairs(paths) do
+	    if str:match(pattern) and not skip[str] then
+	       table.insert(matches, str)
+	       print(string.format('    %-6d  %s,',#matches,str))
+	    end
+	 end
+	 matches.find = find
+	 matches.show = show
+	 return matches
+      end
+
+      show = function(paths)
+	 for i,str in ipairs(paths) do
+	    print(string.format('    %-6d  %s,',i,str))
+	 end
       end
    end
 
-   local function show_expand(cluster, path, header, field)
-      local elf = cluster.inode_to_elf[cluster.path_to_inode[path]]
+   function cluster.find(self, pattern)
+      local matches = {}
+      for path,_ in pairs(self.path_to_inode) do
+	 if path:match(pattern) then
+	    table.insert(matches, path)
+	    print(string.format('    %-6d  %s,',#matches,path))
+	 end
+      end
+      table.sort(matches)
+      matches.find = find
+      matches.show = show
+      return matches
+   end
+
+   local function show_expand(self, path, header, field)
+      local elf = self.inode_to_elf[self.path_to_inode[path]]
       if not elf then
 	 print("No such item: "..path)
 	 return
       end
       local seen = {}
       local stack = { elf }
+      local expansion={}
       print(header..path..':')
       while #stack > 0 do
 	 local top = table.remove(stack)
@@ -219,23 +255,28 @@ function resolve (directories, prefix, extralibs, cluster)
 	    if not seen[entry] then
 	       seen[entry] = true
 	       table.insert(stack, entry)
-	       print('',entry.path)
+	       table.insert(expansion, entry.path)
 	    end
 	 end
       end
-      return true
-   end
-
-   function cluster.show_supported(cluster, path)
-      show_expand(cluster, path, "Dependents upon ", "dependents")
-   end
-
-   function cluster.show_needed(cluster, path)
-      if not show_expand(cluster, path, "Needed for ", "supporters") then
-	 return
+      table.sort(expansion)
+      for i,path in ipairs(expansion) do
+	 print(string.format('    %-6d  %s,',i,path))
       end
+      expansion.find = find
+      expansion.show = show
+      return expansion
+   end
+
+   function cluster.show_supported(self, path)
+      return show_expand(self, path, "Dependents upon ", "dependents")
+   end
+
+   function cluster.show_needed(self, path)
+      local expansion = show_expand(self, path, "Needed for ", "supporters")
+      if not expansion then return end
       local unmet = {}
-      local elf = cluster.inode_to_elf[cluster.path_to_inode[path]]
+      local elf = self.inode_to_elf[self.path_to_inode[path]]
       for _, needed in ipairs(elf.needed) do
 	 if not elf.needs_met[needed] then table.insert(unmet, needed) end
       end
@@ -243,16 +284,17 @@ function resolve (directories, prefix, extralibs, cluster)
 	 print('\nUnmet needs:')
 	 for _, needed in ipairs(unmet) do print('', needed) end
       end
+      return expansion
    end
 
-   function cluster.show_missing(cluster, verbose)
-      for lib,needers in pairs(cluster.missing) do
+   function cluster.show_missing(self, verbose)
+      for lib,needers in pairs(self.missing) do
 	 print('Missing: '..lib)
 	 if verbose then
 	    for _, needer in ipairs(needers) do
-	       local elf = cluster.inode_to_elf[needer.inode]
+	       local elf = self.inode_to_elf[needer.inode]
 	       local first = '   M:'..elf.machine..' C:'..elf.class
-	       for syn,_ in pairs(cluster.inode_to_synonyms[needer.inode]) do
+	       for syn,_ in pairs(self.inode_to_synonyms[needer.inode]) do
 		  print(first,syn)
 		  first = '         '
 	       end
@@ -261,11 +303,12 @@ function resolve (directories, prefix, extralibs, cluster)
       end
    end
 
-   function cluster.save_cluster(cluster, file)
-      local handle, err = io.open(file, 'w')
+
+   function cluster.preserve(self, file)
+      if not file:match(file_pattern) then file=file..file_extension end
+      local handle, err = io.popen('xz -1 >'..file, 'w')
       if not handle then error(err) end
-      local data = marshal.encode(cluster)
-      handle:write(data)
+      handle:write(marshal.encode(self))
       handle:close()
    end
 
@@ -273,15 +316,15 @@ function resolve (directories, prefix, extralibs, cluster)
 end
 
 
-function load_cluster(file)
-   local handle, err = io.open(file)
+function reconstitute(file)
+   local handle, err = io.popen('xzcat <'..file)
    if not handle then error(err) end
-   local data = handle:read '*a'
+   local data = marshal.decode(handle:read '*a')
    handle:close()
-   return marshal.decode(data)
+   return data
 end
 
-function load_spec(file, prefix)
+function load_dlspec(file, prefix)
    print(file)
    local t = loadfile(file)()
    prefix = prefix or t.prefix
@@ -291,7 +334,7 @@ function load_spec(file, prefix)
 end
 
 if (arg and arg[1]) then
-   local cluster = load_spec(arg[1], arg[2])
+   local cluster = load_dlspec(arg[1], arg[2])
    local name = cluster.default_name or 'NO_NAME'
    _G[name] = cluster
    print('\nCluster is in \''..name..'\'\n')
