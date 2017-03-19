@@ -372,8 +372,7 @@ function reconstitute(file)
 end
 
 function load_dlspec(file, prefix)
-   print(file)
-   local t = loadfile(file)()
+   local t = dofile(file)
    prefix = prefix or t.prefix
    local cluster = resolve(t.paths, prefix, t.extras)
    if t.default_name then cluster.default_name = t.default_name end

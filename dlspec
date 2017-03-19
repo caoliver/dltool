@@ -19,3 +19,7 @@ return {
       '/usr/local/lib/firefox'
    }
 }
+
+-- Local Variables:
+-- mode: lua
+-- End:
