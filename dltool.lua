@@ -1,7 +1,3 @@
-local origin=(arg and (arg[0]:match '^(.*)/') or '.')
-local elfutil=package.loadlib(origin..'/elfutil.so', 'luaopen_elfutil')()
-local marshal=package.loadlib(origin..'/lmarshal.so', 'luaopen_marshal')()
-
 -- This metatable provides for tables of tables where a new key
 -- yields an empty table which is cached for future reference.
 local populator = { __index = function(t,k) t[k] = {}; return t[k] end }

@@ -1,0 +1,20 @@
+dummy= #_G --[[
+   script=$(readlink -f "$0")
+   origin=$(readlink -m "$script/..")
+   completions=/dev/null
+   [ -f $origin/completions ] && completions=$origin/completions
+   exec rlwrap -b ":(){}[],+-=&^%$#@\"';|\\"  \
+               -f $completions               \
+               -c -H $HOME/.${script##*/}_history \
+               lua -i "$script" "$@"
+#--]]
+
+local origin=(arg and (arg[0]:match '^(.*)/') or '.')
+elfutil=package.loadlib(origin..'/elfutil.so', 'luaopen_elfutil')()
+marshal=package.loadlib(origin..'/lmarshal.so', 'luaopen_marshal')()
+
+dofile(origin..'/dltool.lua')
+
+-- Local Variables:
+-- mode: lua
+-- End:
