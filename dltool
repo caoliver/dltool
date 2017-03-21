@@ -1,8 +1,11 @@
 dummy= #_G --[[
    script=$(readlink -f "$0")
-   origin=$(readlink -m "$script/..")
+   origin=${script%/*}
    completions=/dev/null
    [ -f $origin/completions ] && completions=$origin/completions
+#  Uncomment below if libelf, libluajit, libreadline, and rlwrap live here.
+#  export LD_LIBRARY_PATH=$origin
+#  export PATH=$origin:$PATH
    exec rlwrap -b ":(){}[],+-=&^%$#@\"';|\\"  \
                -f $completions               \
                -c -H $HOME/.${script##*/}_history \
