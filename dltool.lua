@@ -305,8 +305,14 @@ function resolve (directories, prefix, extralibs, cluster)
    end
 
    function cluster.show_missing(self, verbose)
+      local missing = self.missing
+      if type(verbose) == 'string' then
+	 local lib = missing[verbose]
+	 if not lib then print('No such library: '..verbose); return end
+	 missing = { [verbose]=lib }
+      end
       print 'Missing shared libraries:'
-      for lib,needers in pairs(self.missing) do
+      for lib,needers in pairs(missing) do
 	 print('  '..lib)
 	 if verbose then
 	    for _, needer in ipairs(needers) do
