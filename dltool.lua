@@ -126,16 +126,14 @@ function resolve (directories, prefix, extralibs, cluster)
 	 local inode = table.remove(queue)
 	 local elf = inode_to_elf[inode]
 	 local origin
-	 if elf.type == 'executable' then
-	    local origins =
-	       elfutil.get_origins(inode_to_synonyms[inode],prefix)
-	    for k,_ in pairs(origins) do
-	       k = cleanuppath(k)
-	       if not origin then origin = k end
-	       -- If there's more than one origin, we've got troubles.
-	       if origin ~= k then
-		  print('Multiple origins ignored: '..k..' ('..origin..')')
-	       end
+	 local origins =
+	    elfutil.get_origins(inode_to_synonyms[inode],prefix)
+	 for k,_ in pairs(origins) do
+	    k = cleanuppath(k)
+	    if not origin then origin = k end
+	    -- If there's more than one origin, we've got troubles.
+	    if origin ~= k then
+	       print('Multiple origins ignored: '..k..' ('..origin..')')
 	    end
 	 end
 	 local rpath = {}
