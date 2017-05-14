@@ -7,6 +7,8 @@ local file_pattern='%'..file_extension..'$'
 -- yields an empty table which is cached for future reference.
 local populator = { __index = function(t,k) t[k] = {}; return t[k] end }
 
+invoked=0
+
 function resolve (directories, prefix, extralibs, cluster)
 
    local doreset = cluster and cluster.inode_to_elf
@@ -26,17 +28,29 @@ function resolve (directories, prefix, extralibs, cluster)
    local defaultpaths = { '/lib', '/lib64', '/usr/lib', '/usr/lib64' }
 
    local function cleanuppath(path)
-      -- Elide superfluous '/'.
-      path = path:gsub('/+', '/')
-      -- Remove backtracks.
-      local newpath
-      while true do
-	 local newpath = path:gsub('/[^/]+/%.%./', '/')
-	 if newpath == path then break end
-	 path = newpath
+      local stack = {}
+      local first,rest=path:match('([^/]*/?)(.*)')
+      local anchored = first == '/'
+      local backcount = 0
+      if first == '..' or first == '../' then backcount = 1 end
+      table.insert(stack, first)
+      for part in string.gmatch(rest, '([^/]*/?)') do
+	 if #part > 0 and part ~= '/' and part ~= './' then
+	    if part ~= '..' and part ~= '../' then
+	       table.insert(stack,part)
+	    elseif anchored or #stack > backcount then
+	       if #stack > 1 then table.remove(stack, #stack) end
+	    else
+	       table.insert(stack, '../')
+	       backcount = backcount + 1
+	    end
+	 end
       end
-      -- Remove trailing slash if present.
-      return path[#path] == '/'  and path:sub(1,-2) or path
+      if #stack > 1 or #stack[1] > 1 then
+	 local first=stack[#stack]:match('^(.*)/')
+	 if first then stack[#stack] = first end
+      end
+      return table.concat(stack, '')
    end
 
    prefix = prefix and cleanuppath(prefix)
