@@ -18,6 +18,7 @@ function resolve (directories, prefix, extralibs, cluster)
    local inode_to_synonyms = cluster.inode_to_synonyms
    local path_to_inode = cluster.path_to_inode
    local name_to_paths = cluster.name_to_paths
+   local rpaths_loaded = cluster.rpaths_loaded
    local missing = cluster.missing
    setmetatable(cluster, nil)
 
@@ -150,17 +151,22 @@ function resolve (directories, prefix, extralibs, cluster)
 	       print('Multiple origins ignored: '..k..' ('..origin..')')
 	    end
 	 end
-	 local rpath = {}
+	 local rpath, rpath_pending = {}, {}
 	 for _,path in ipairs(elf.runpath or elf.rpath or {}) do
+	    local new_rpath
 	    if not origin then
-	       table.insert(rpath, cleanuppath(path))
+	       new_rpath = cleanuppath(path)
 	    elseif path == '$ORIGIN' then
-	       table.insert(rpath, origin)
+	       new_rpath = origin
 	    else
-	       path = path:gsub('^$ORIGIN/', origin..'/')
-	       table.insert(rpath, cleanuppath(path))
+	       new_rpath = path:gsub('^$ORIGIN/', origin..'/')
+	    end
+	    table.insert(rpath, new_rpath)
+	    if not rpaths_loaded[new_rpath] then
+	       table.insert(rpath_pending, new_rpath)
 	    end
 	 end
+
 	 function make_link(supporter_inode, path)
 	    local supporter = inode_to_elf[supporter_inode]
 	    if supporter.type == 'shared library'
@@ -182,11 +188,13 @@ function resolve (directories, prefix, extralibs, cluster)
 		  table.insert(missing[needed], elf)
 	       end
 	    else
-	       local paths = name_to_paths[needed]
-	       if not paths then
-		  add_files(rpath)
-		  paths = name_to_paths[needed]
+	       if #rpath_pending > 0 then
+		  add_files(rpath_pending)
+		  for _, path in ipairs(rpath_pending) do
+		     rpaths_loaded[path] = true
+		  end
 	       end
+	       local paths = name_to_paths[needed]
 	       if paths then
 		  local function search(pathtab)
 		     for _, path in ipairs(pathtab) do
@@ -331,8 +339,13 @@ function resolve (directories, prefix, extralibs, cluster)
 	       local elf = self.inode_to_elf[needer.inode]
 	       local first = '     M:'..elf.machine..' C:'..elf.class
 	       local rest = string.rep(' ',#first)
+	       local shown = {}
 	       for syn,_ in pairs(self.inode_to_synonyms[needer.inode]) do
-		  print(first,syn)
+		  local cleaned = cleanuppath(syn)
+		  if not shown[cleaned] then
+		     print(first,cleaned)
+		     shown[cleaned] = true
+		  end
 		  first = rest
 	       end
 	    end
