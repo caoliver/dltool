@@ -4,7 +4,7 @@ LDFLAGS+=-lluajit-5.1
 
 .PHONY: all clean
 
-all: elfutil.so lmarshal.so
+all: elfutil.so
 
 elfutil.so: elfutil.o
 	gcc -shared $(LDFLAGS) -lelf -o $@ $<

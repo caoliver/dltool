@@ -15,7 +15,7 @@ dummy=nil
 
 local origin=(arg and (arg[0]:match '^(.*)/') or '.')
 elfutil=package.loadlib(origin..'/elfutil.so', 'luaopen_elfutil')()
-marshal=package.loadlib(origin..'/lmarshal.so', 'luaopen_marshal')()
+marshal=require 'marshal'
 
 dofile(origin..'/dltool.lua')
 
