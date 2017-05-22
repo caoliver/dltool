@@ -14,10 +14,14 @@ dummy= #_G --[[
 dummy=nil
 
 local origin=(arg and (arg[0]:match '^(.*)/') or '.')
-elfutil=package.loadlib(origin..'/elfutil.so', 'luaopen_elfutil')()
-marshal=require 'marshal'
 
-dofile(origin..'/dltool.lua')
+package.path=origin..'/?.lua'..';'..package.path
+package.cpath=origin..'/?.so'..';'..package.cpath
+elfutil=require 'elfutil'
+marshal=require 'marshal'
+pp=require 'pprint'
+
+require 'dltool'
 
 -- Local Variables:
 -- mode: lua
