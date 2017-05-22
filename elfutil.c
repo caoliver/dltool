@@ -10,6 +10,8 @@
 #include <errno.h>
 #include <alloca.h>
 
+char *realpath(const char *path, char *resolved_path);
+
 #define PT_INTERP       3
 #define SHT_DYNAMIC     6
 
@@ -354,6 +356,19 @@ LUAFN(get_origins)
     return 1;
 }
 
+LUAFN(canonicalize)
+{
+    char *path = realpath(lua_tostring(L, 1), NULL);
+
+    if (path) {
+        lua_pushstring(L, path);
+        free(path);
+    } else
+        lua_pushnil(L);
+
+    return 1;
+}
+
 typedef struct { const char *name; int value; } intconst;
 
 LUALIB_API int luaopen_elfutil(lua_State *L)
@@ -363,6 +378,7 @@ LUALIB_API int luaopen_elfutil(lua_State *L)
 	FN_ENTRY(scan_elf),
 	FN_ENTRY(get_candidates),
 	FN_ENTRY(get_origins),
+	FN_ENTRY(canonicalize),
 	{NULL, NULL}
     };
 
