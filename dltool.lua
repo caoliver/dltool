@@ -7,9 +7,8 @@ local file_pattern='%'..file_extension..'$'
 -- yields an empty table which is cached for future reference.
 local populator = { __index = function(t,k) t[k] = {}; return t[k] end }
 
-invoked=0
-
-function resolve (directories, prefix, extralibs, cluster)
+function resolve (directories, prefix, extralibs, cluster,
+		  no_default_libraries)
 
    local doreset = cluster and cluster.inode_to_elf
    local cluster = cluster or {}
@@ -129,8 +128,10 @@ function resolve (directories, prefix, extralibs, cluster)
       return #entries > 0
    end
 
-   add_files(defaultpaths)
-   add_files(ldsocache)
+   if not no_default_libraries then
+      add_files(defaultpaths)
+      add_files(ldsocache)
+   end
    add_files(directories)
    add_files(extralibs)
 
@@ -405,7 +406,8 @@ end
 function load_dlspec(file, prefix)
    local t = dofile(file)
    prefix = prefix or t.prefix
-   local cluster = resolve(t.paths, prefix, t.extras)
+   local cluster = resolve(t.paths, prefix, t.extras, nil,
+			   t.inhibit_default_libraries)
    if t.default_name then cluster.default_name = t.default_name end
    return cluster
 end

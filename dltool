@@ -20,6 +20,7 @@ package.cpath=origin..'/?.so'..';'..package.cpath
 elfutil=require 'elfutil'
 marshal=require 'marshal'
 pp=require 'pprint'
+function pt(t,l) io.write(pp.pformat(t, {depth_limit = l or 1})..'\n') end
 
 require 'dltool'
 
