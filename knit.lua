@@ -55,7 +55,7 @@ end
 
 function knit(cluster, other_substitutions)
    local function recompute_rpath(elf)
-      elf.net_rpath=nil
+      elf.new_rpath=nil
       rpath = {}
       for _, supporter in ipairs(elf.supporters) do
 	 local shortened = supporter.path:match '^(.*)/[^/]*$'

@@ -1,6 +1,6 @@
 return {
    default_name = 'c',
---   inhibit_detault_libraries=true,
+--   inhibit_default_libraries=true,
 
    paths = {
       '/bin',
