@@ -1,3 +1,4 @@
+#!/bin/bash
 dummy= #_G and nil --[[
    script=$(readlink -f "$0")
    origin=${script%/*}
