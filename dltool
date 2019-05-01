@@ -18,7 +18,7 @@ local origin=(arg and (arg[0]:match '^(.*)/') or '.')
 package.path=origin..'/?.lua'..';'..package.path
 package.cpath=origin..'/?.so'..';'..package.cpath
 elfutil=require 'elfutil'
-marshal=require 'marshal'
+marshal=require 'freezer'
 pp=require 'pprint'
 function pt(t,l) io.write(pp.pformat(t, {depth_limit = l or 1}),'\n') end
 
