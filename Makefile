@@ -7,7 +7,7 @@ LDFLAGS+=-lluajit-5.1
 all: elfutil.so
 
 elfutil.so: elfutil.o
-	gcc -shared $(LDFLAGS) -lelf -o $@ $<
+	gcc -shared -lelf -o $@ $<
 
 %.so: %.o
 	gcc -shared $(LDFLAGS) -o $@ $<
